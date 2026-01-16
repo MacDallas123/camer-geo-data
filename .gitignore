@@ -1,0 +1,7 @@
+.env
+.env.development
+.env.production
+database.env
+node_modules/
+uploads/
+!uploads/announces/README.md
