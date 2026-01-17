@@ -109,7 +109,7 @@ exports.getGeojsonByCoordinates = async (req, res) => {
 // Handler: Get geojson by coordinates and generate downloadable GeoJSON files
 exports.saveGeojsonFilesByCoordinates = async (req, res) => {
     try {
-        const { lng, lat } = req.query;
+        const { lng, lat } = req.method === 'POST' ? req.body : req.query;
 
         if (!lng || !lat) {
             return res.status(400).json({ status: 'error', message: 'Missing lng or lat parameters' });
