@@ -21,7 +21,7 @@ jobs:
               run: |
                 echo DB_HOST=${{ vars.DB_HOST }} >> .env.production
                 echo DB_USER=${{ secrets.DB_USER }} >> .env.production
-                echo DB_NAME=${{ secrets.DB_NAME }} >> .env.production
+                echo DB_NAME=${{ vars.DB_NAME }} >> .env.production
                 echo DB_PASSWORD=${{ secrets.DB_PASSWORD }} >> .env.production
                 echo DB_PORT=${{ vars.DB_PORT }} >> .env.production
                 echo DEFAULT_DB_NAME=${{ vars.DEFAULT_DB_NAME }} >> .env.production
