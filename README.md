@@ -17,7 +17,7 @@ Cette application fournit une API RESTful développée avec Node.js et Express.j
 
 ```bash
 git clone https://github.com/MacDallas123/camer-geo-data.git
-cd camgd-api
+cd camergd-api
 ```
 
 ### Installation des Dépendances
@@ -37,7 +37,7 @@ npm install
 # Configuration de la base de données
 DB_HOST=localhost
 DB_USER=postgres
-DB_NAME=camgd_db
+DB_NAME=camergd_db
 DB_PASSWORD=postgres
 DB_PORT=5432
 
@@ -54,7 +54,7 @@ NODE_ENV=development
 ```
 POSTGRES_USER=user
 POSTGRES_PASSWORD=password
-POSTGRES_DB=camgd_db
+POSTGRES_DB=camergd_db
 ```
 
 ## 🚦 Démarrage de l'Application

@@ -1,6 +1,6 @@
 
 services:
-  camgd-api:
+  camergd-api:
     build: .
     ports:
       - 3007:3007
@@ -11,7 +11,7 @@ services:
       - /app/node_modules
     command: npm run dev
     networks:
-      - camgd-network
+      - camergd-network
   
   postgis:
     image: postgis/postgis:15-3.3
@@ -23,12 +23,12 @@ services:
     volumes:
       - postgis_data:/var/lib/postgresql/data
     networks:
-      - camgd-network
+      - camergd-network
 
 
 networks:
-  camgd-network:
-    name: camgd-network
+  camergd-network:
+    name: camergd-network
 
 volumes:
   postgis_data:

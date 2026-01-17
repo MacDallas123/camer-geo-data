@@ -38,7 +38,7 @@ const port = process.env.PORT || 3007;
 async function dbConfigurations() {
   // créer la base de donées si elle n'existe pas
   console.log("Synchronisation de la bd...");
-  await db.createDb(process.env.DB_NAME || 'camgd_db');
+  await db.createDb(process.env.DB_NAME || 'camergd_db');
   
   // Synchroniser les modèles avec la base de données
   //sequelize.sync({ force: true })
