@@ -6,12 +6,12 @@ WORKDIR /app
 VOLUME /tmp
 
 # Install dependencies first to leverage Docker layer caching
-COPY package*.json ./
+COPY package.json yarn.lock ./
 
-RUN npm ci
+RUN yarn install --frozen-lockfile
 
 # Install nodemon locally instead of globally to optimize build time
-RUN npm install nodemon --save-dev
+RUN yarn add nodemon --dev
 
 COPY . .
 
