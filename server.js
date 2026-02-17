@@ -23,10 +23,18 @@ app.use(cors({
 // app.options('*', cors());
 
 // Start of any route
-let routeHead = "/api/v1";
-app.use(`${routeHead}/files`, geojsonRoutes)
-app.use(`${routeHead}/generated`, express.static(path.join(__dirname, "resources", "generated")))
+
+let routeHead = "/api";
+// Version 1
+let version1 = "/v1";
+app.use(`${routeHead}${version1}/files`, geojsonRoutes)
+app.use(`${routeHead}${version1}/generated`, express.static(path.join(__dirname, "resources", "generated")))
 //app.use(`${routeHead}/uploads`, express.static(path.join(__dirname, "uploads")))
+
+// Version 2
+// let version2 = "/v2";
+// app.use(`${routeHead}${version2}/files`, geojsonRoutes)
+// app.use(`${routeHead}${version2}/generated`, express.static(path.join(__dirname, "resources", "generated")))
 
 // Gestion des erreurs 404
 app.use((req, res) => {

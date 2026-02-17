@@ -7,8 +7,10 @@ router.get('/import', geojsonController.importData);
 
 // Route to get geojson by coordinates
 router.get('/by-coordinates-geojson', geojsonController.getGeojsonByCoordinates);
-router.get('/by-coordinates', geojsonController.saveGeojsonFilesByCoordinates);
-router.post('/by-coordinates', geojsonController.saveGeojsonFilesByCoordinates);
+router.get('/by-coordinates-old', geojsonController.saveGeojsonFilesByCoordinates);
+router.post('/by-coordinates-old', geojsonController.saveGeojsonFilesByCoordinates);
+router.get('/by-coordinates', geojsonController.saveGeojsonFilesByCoordinatesV2);
+router.post('/by-coordinates', geojsonController.saveGeojsonFilesByCoordinatesV2);
 
 
 // Route to generate map image from geojson

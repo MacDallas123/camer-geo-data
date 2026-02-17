@@ -5,7 +5,23 @@ const Arrondissement = sequelize.define("arrondissement", {
     geom: {
         type: DataTypes.GEOMETRY('MULTIPOLYGON'),
         allowNull: true
-    }
+    },
+    adm0_fr: { // Country name in French
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    adm1_fr: { // Region name in French
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    adm2_fr: { // Departement name in French
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    adm3_fr: { // Arrondissement name in French
+        type: DataTypes.STRING,
+        allowNull: true
+    },
 },
 {
     timestamps: true

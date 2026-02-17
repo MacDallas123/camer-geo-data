@@ -77,6 +77,7 @@ Retirer le *--build* si vous ne souhaitez pas reconstruire l'image
 ### 🖼️ fichiers
 
 - `GET /api/v1/files/import` - Importer les donnees depuis des geojson dans la BD
+- `GET /api/v1/files/import?refresh=true` - Importer les donnees depuis des geojson dans la BD (rafraichir la BD)
 - `GET /api/v1/files/by-coordinates-geojson` - A partir d'un point retourner les geojson de la region, departement et arrondissement
 - `GET|POST /api/v1/files/by-coordinates` - A partir d'un point retourner les liens des fichiers geojson de la region, departement et arrondissement
 - `get /api/v1/fiels/test` - Tester la generation d'image

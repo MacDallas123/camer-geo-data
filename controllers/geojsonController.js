@@ -6,10 +6,19 @@ const { Op, fn, col } = require('sequelize');
 exports.importData = async (req, res) => {
 
     try {
+        const { refresh = 'false' } = req.query;
+
         // Charger les fichiers GeoJSON
+        const countryGeoJSON = JSON.parse(fs.readFileSync(path.join(__dirname, '../resources/generated/country.geojson'), 'utf8'));
         const regionGeoJSON = JSON.parse(fs.readFileSync(path.join(__dirname, '../resources/region.geojson'), 'utf8'));
         const departementGeoJSON = JSON.parse(fs.readFileSync(path.join(__dirname, '../resources/departement.geojson'), 'utf8'));
         const arrondissementGeoJSON = JSON.parse(fs.readFileSync(path.join(__dirname, '../resources/arrondissement.geojson'), 'utf8'));
+
+        if (refresh === 'true' || refresh === '1' || refresh === 1 || refresh === true || refresh === 'True' || refresh === 'TRUE') {
+            await Region.destroy({ where: {} });
+            await Departement.destroy({ where: {} });
+            await Arrondissement.destroy({ where: {} });
+        }
 
         // Importer les régions
         if (regionGeoJSON.features && Array.isArray(regionGeoJSON.features)) {
@@ -119,6 +128,8 @@ exports.saveGeojsonFilesByCoordinates = async (req, res) => {
         const userPoint = { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] };
 
         // This query assumes PostGIS is used for `ST_Contains`
+
+        // For Country
         // For Region
         const region = await Region.findOne({
             where: sequelize.where(
@@ -169,67 +180,43 @@ exports.saveGeojsonFilesByCoordinates = async (req, res) => {
         } else {
             defaultStyles = req.body && req.body.defaultStyles;
         }
-
+        //
+        const defaultTemplate = {
+            region: {
+                name: "Zone de test",
+                color: "#ff0000",
+                weight: 2,
+                fillColor: "#ff0000",
+                fillOpacity: 0.2,
+                opacity: 1
+            },
+            departement: {
+                name: "Zone de test",
+                color: "#ff0000",
+                weight: 2,
+                fillColor: "#ff0000",
+                fillOpacity: 0.2,
+                opacity: 1
+            },
+            arrondissement: {
+                name: "Zone de test",
+                color: "#ff0000",
+                weight: 2,
+                fillColor: "#ff0000",
+                fillOpacity: 0.2,
+                opacity: 1
+            }
+        };
         // Fallback/default styles check
         if (
             !defaultStyles ||
             typeof defaultStyles !== "object" ||
             Array.isArray(defaultStyles)
         ) {
-            defaultStyles = {
-                region: {
-                    name: "Zone de test",
-                    color: "#ff0000",
-                    weight: 2,
-                    fillColor: "#ff0000",
-                    fillOpacity: 0.2,
-                    opacity: 1
-                },
-                departement: {
-                    name: "Zone de test",
-                    color: "#ff0000",
-                    weight: 2,
-                    fillColor: "#ff0000",
-                    fillOpacity: 0.2,
-                    opacity: 1
-                },
-                arrondissement: {
-                    name: "Zone de test",
-                    color: "#ff0000",
-                    weight: 2,
-                    fillColor: "#ff0000",
-                    fillOpacity: 0.2,
-                    opacity: 1
-                }
-            };
+            defaultStyles = defaultTemplate;
         } else {
             // Merge user-provided styles with defaults for each type
-            const defaultTemplate = {
-                region: {
-                    name: "Zone de test",
-                    color: "#ff0000",
-                    weight: 2,
-                    fillColor: "#ff0000",
-                    fillOpacity: 0.2,
-                    opacity: 1
-                },
-                departement: {
-                    name: "Zone de test",
-                    color: "#ff0000",
-                    weight: 2,
-                    fillColor: "#ff0000",
-                    fillOpacity: 0.2,
-                    opacity: 1
-                },
-                arrondissement: {
-                    name: "Zone de test",
-                    color: "#ff0000",
-                    weight: 2,
-                    fillColor: "#ff0000",
-                    fillOpacity: 0.2,
-                    opacity: 1
-                }
-            };
+
             defaultStyles = {
                 region: { ...defaultTemplate.region, ...(defaultStyles.region || {}) },
                 departement: { ...defaultTemplate.departement, ...(defaultStyles.departement || {}) },
@@ -275,6 +262,8 @@ exports.saveGeojsonFilesByCoordinates = async (req, res) => {
         const apiPrefix = '/api/v1/generated';
         const files = {};
 
+        // Country - always overwrite
+        files.country = `${apiPrefix}/country.geojson`;
         // Region - always overwrite
         if (regionFeature) {
             const regionPath = path.join(generatedDir, 'reg.geojson');
@@ -310,6 +299,225 @@ exports.saveGeojsonFilesByCoordinates = async (req, res) => {
             status: 'success'
         });
 
+    } catch (error) {
+        console.error("GeoJSON file generation error:", error);
+        res.status(500).json({ message: error.message, status: 'error' });
+    }
+};
+
+// Handler: Get geojson by coordinates and generate downloadable GeoJSON files V2
+exports.saveGeojsonFilesByCoordinatesV2 = async (req, res) => {
+    try {
+        const { lng, lat } = req.method === 'POST' ? req.body : req.query;
+
+        if (!lng || !lat) {
+            return res.status(400).json({ status: 'error', message: 'Missing lng or lat parameters' });
+        }
+
+        const userPoint = { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] };
+        const userPointGeojson = JSON.stringify(userPoint);
+
+        // Find the arrondissement (smallest unit) containing the point (should be unique/match one ideally)
+        const arrondissement = await Arrondissement.findOne({
+            where: sequelize.where(
+                fn('ST_Contains', col('geom'), fn('ST_SetSRID', fn('ST_GeomFromGeoJSON', userPointGeojson), 4326)),
+                true
+            )
+        });
+
+        // Find the matching departement using adm2_fr of found arrondissement
+        let departements = [];
+        let adm2_fr = null;
+        if (arrondissement && arrondissement.adm2_fr) {
+            adm2_fr = arrondissement.adm2_fr;
+            departements = await Departement.findAll({ where: { adm2_fr } });
+        }
+
+        // Find all arrondissements in the same departement
+        let arrondissementsInDept = [];
+        if (adm2_fr) {
+            arrondissementsInDept = await Arrondissement.findAll({ where: { adm2_fr } });
+        }
+
+        // Find the matching region using adm1_fr of found departement
+        let adm1_fr = null;
+        if (departements.length > 0 && departements[0].adm1_fr) {
+            adm1_fr = departements[0].adm1_fr;
+        }
+
+        // Get all departements in the same region (adm1_fr)
+        let departementsInRegion = [];
+        if (adm1_fr) {
+            departementsInRegion = await Departement.findAll({ where: { adm1_fr } });
+        }
+
+        // Setup directory for saving geojson
+        const generatedDir = path.join(__dirname, '..', 'resources', 'generated');
+        if (!fs.existsSync(generatedDir)) {
+            fs.mkdirSync(generatedDir, { recursive: true });
+        }
+
+        // Resolve/parse defaultStyles
+        let defaultStyles;
+        let method = req.method && req.method.toUpperCase && req.method.toUpperCase();
+        if (method === 'GET') {
+            if (req.query.defaultStyles) {
+                if (typeof req.query.defaultStyles === "string") {
+                    try {
+                        defaultStyles = JSON.parse(req.query.defaultStyles);
+                    } catch (e) {
+                        defaultStyles = null;
+                    }
+                } else if (typeof req.query.defaultStyles === "object" && req.query.defaultStyles !== null) {
+                    defaultStyles = req.query.defaultStyles;
+                }
+            }
+        } else {
+            defaultStyles = req.body && req.body.defaultStyles;
+        }
+
+        const defaultTemplate = {
+            country: {
+                name: "Zone de test",
+                color: "#ff0000",
+                weight: 2,
+                fillColor: "#ff0000",
+                fillOpacity: 0.2,
+                opacity: 1
+            },
+            region: {
+                name: "Zone de test",
+                color: "#ff0000",
+                weight: 2,
+                fillColor: "#ff0000",
+                fillOpacity: 0.2,
+                opacity: 1
+            },
+            departement: {
+                name: "Zone de test",
+                color: "#ff0000",
+                weight: 2,
+                fillColor: "#ff0000",
+                fillOpacity: 0.2,
+                opacity: 1
+            },
+            arrondissement: {
+                name: "Zone de test",
+                color: "#ff0000",
+                weight: 2,
+                fillColor: "#ff0000",
+                fillOpacity: 0.2,
+                opacity: 1
+            }
+        };
+
+        // Merge defaultStyles and fallback
+        if (
+            !defaultStyles ||
+            typeof defaultStyles !== "object" ||
+            Array.isArray(defaultStyles)
+        ) {
+            defaultStyles = defaultTemplate;
+        } else {
+            defaultStyles = {
+                country: { ...defaultTemplate.country, ...(defaultStyles.country || {}) },
+                region: { ...defaultTemplate.region, ...(defaultStyles.region || {}) },
+                departement: { ...defaultTemplate.departement, ...(defaultStyles.departement || {}) },
+                arrondissement: { ...defaultTemplate.arrondissement, ...(defaultStyles.arrondissement || {}) }
+            };
+        }
+
+        // Helper: Build GeoJSON FeatureCollection for multiple department or arrondissement objects (each feature has own adm2_fr or adm3_fr as "name")
+        function featuresOf(objs, typeName) {
+            if (!objs || (Array.isArray(objs) && objs.length === 0)) return null;
+            const arr = Array.isArray(objs) ? objs : [objs];
+            return {
+                type: "FeatureCollection",
+                features: arr.map(obj => {
+                    let geom = obj.geom || (obj.dataValues && obj.dataValues.geom);
+                    // Remove geometry fields from attributes
+                    const baseProps = Object.fromEntries(
+                        Object.entries(obj.dataValues || obj)
+                            .filter(([k]) => k !== "geom" && k !== "geometry")
+                    );
+
+                    let props = { ...baseProps, ...defaultStyles[typeName || 'region'] };
+
+                    // For departement, set name per feature from adm2_fr
+                    if (typeName === 'departement' && obj.adm2_fr) {
+                        props.name = obj.adm2_fr;
+                    }
+                    // For arrondissement, set name per feature from adm3_fr
+                    if (typeName === 'arrondissement' && obj.adm3_fr) {
+                        props.name = obj.adm3_fr;
+                    }
+
+                    return {
+                        type: "Feature",
+                        geometry: typeof geom === "string" ? JSON.parse(geom) : geom,
+                        properties: props
+                    };
+                })
+            };
+        }
+
+        // Build region geojson as all departements in the same region (adm1_fr)
+        let regionFeature = departementsInRegion && departementsInRegion.length > 0
+            //? featuresOf(departementsInRegion, 'region')
+            ? featuresOf(departementsInRegion, 'departement')
+            : null;
+
+        // Build departement geojson: features are all arrondissements in the department, each has own adm2_fr in props.name
+        let deptFeature = arrondissementsInDept && arrondissementsInDept.length > 0
+            //? featuresOf(arrondissementsInDept, 'departement')
+            ? featuresOf(arrondissementsInDept, 'arrondissement')
+            : null;
+
+        // Arrondissement geojson (the one containing the point), set name from adm3_fr
+        let arrondFeature = arrondissement
+            ? featuresOf(arrondissement, 'arrondissement')
+            : null;
+
+        // Save files if found
+        const apiPrefix = '/api/v1/generated';
+        const files = {};
+
+        // Country - always exists for compatibility
+        files.country = `${apiPrefix}/country.geojson`;
+
+        if (regionFeature) {
+            const regionPath = path.join(generatedDir, 'reg.geojson');
+            fs.writeFileSync(regionPath, JSON.stringify(regionFeature, null, 2));
+            files.region = `${apiPrefix}/reg.geojson`;
+        } else {
+            files.region = null;
+        }
+
+        if (deptFeature) {
+            const deptPath = path.join(generatedDir, 'dept.geojson');
+            fs.writeFileSync(deptPath, JSON.stringify(deptFeature, null, 2));
+            files.departement = `${apiPrefix}/dept.geojson`;
+        } else {
+            files.departement = null;
+        }
+
+        if (arrondFeature) {
+            const arrondPath = path.join(generatedDir, 'arrond.geojson');
+            fs.writeFileSync(arrondPath, JSON.stringify(arrondFeature, null, 2));
+            files.arrondissement = `${apiPrefix}/arrond.geojson`;
+        } else {
+            files.arrondissement = null;
+        }
+
+        // Return urls plus names for departement and arrondissement
+        const response = {
+            region: files.region,
+            departement: files.departement,
+            arrondissement: files.arrondissement,
+            status: 'success',
+        };
+
+        res.json(response);
     } catch (error) {
         console.error("GeoJSON file generation error:", error);
         res.status(500).json({ message: error.message, status: 'error' });
